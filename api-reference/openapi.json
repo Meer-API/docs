@@ -12,7 +12,7 @@
     {
       "url": "https://api.meerapi.com",
       "description": "Production"
-    },
+    }
   ],
   "security": [
     {
@@ -77,6 +77,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/PhoneNumberResponse"
                 },
+                "example": {
+                  "do_not_call": false,
+                  "timestamp": "2025-12-16T14:32:10.123456789Z",
+                  "dnc_list_source": null
+                },
                 "examples": {
                   "found_in_dnc": {
                     "summary": "Phone number found in DNC registry",
@@ -105,6 +110,9 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 },
+                "example": {
+                  "error": "Missing phone_number parameter"
+                },
                 "examples": {
                   "missing_parameter": {
                     "summary": "Missing phone_number parameter",
@@ -129,6 +137,9 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 },
+                "example": {
+                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                },
                 "examples": {
                   "missing_auth": {
                     "summary": "No Authorization header provided",
@@ -146,6 +157,9 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "invalid API key"
                 },
                 "examples": {
                   "invalid_key": {
@@ -181,6 +195,9 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 },
+                "example": {
+                  "error": "Rate limit exceeded. Please try again next month or contact support."
+                },
                 "examples": {
                   "limit_exceeded": {
                     "summary": "Monthly request limit reached",
@@ -198,6 +215,9 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
                 },
                 "examples": {
                   "auth_error": {
