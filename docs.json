@@ -25,7 +25,7 @@
         "tab": "API Reference",
         "openapi": "/api-reference/openapi.json",
         "pages": [
-          "introduction",
+          "/api-reference/introduction",
           "GET /check_phone_number"
         ]
       }

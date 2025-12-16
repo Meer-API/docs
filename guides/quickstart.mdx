@@ -1,5 +1,5 @@
 ---
-title: "Getting an API Key"
+title: "Consuming the API"
 description: "Working with Meer API is a simple two-step process."
 ---
 
@@ -9,13 +9,16 @@ Request a key at [the Meer API official website](https://www.meerapi.com/) - thi
 
 ### Step 2: Start querying
 
-Use your token to query our HTTPS API
+Use your token to query our HTTPS APIs - namely we can check if a phone number is on a Do Not Call list as per below. We just need:
+
+- The phone number we want to check
+- An API token
 
 <RequestExample>
 
 ```filename
 curl --request GET \
-  --url https://api.meerapi.com/check_phone_number \
+  --url https://api.meerapi.com/check_phone_number?phone_number=<url-encoded-phone-number> \
   --header 'Authorization: Bearer <token>'
 ```
 
