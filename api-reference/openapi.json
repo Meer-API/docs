@@ -1,17 +1,18 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
-    "license": {
-      "name": "MIT"
-    },
-    "version": "1.0.0"
+    "title": "Meer API",
+    "description": "API for checking phone numbers against Do Not Call (DNC) registries.\n\n## Authentication\nAll endpoints require API key authentication via the `Authorization` header.\n\n## Rate Limiting\nRequests are limited on a monthly basis per customer. Rate limit information is provided in response headers.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
-    }
+      "url": "https://api.meerapi.com",
+      "description": "Production"
+    },
   ],
   "security": [
     {
@@ -19,199 +20,273 @@
     }
   ],
   "paths": {
-    "/plants": {
+    "/check_phone_number": {
       "get": {
-        "description": "Returns all plants from the system that the user has access to",
+        "summary": "Check phone number against DNC registry",
+        "description": "Validates a phone number and checks if it appears in any Do Not Call registries. Returns DNC status and source information if found.\n\n**Rate Limiting:** This endpoint counts against your monthly request limit.",
+        "operationId": "checkPhoneNumber",
+        "tags": [
+          "Phone Numbers"
+        ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "phone_number",
             "in": "query",
-            "description": "The maximum number of results to return",
+            "required": true,
+            "description": "Phone number to check (international format recommended, e.g., +1234567890)",
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
+            },
+            "examples": {
+              "us_number": {
+                "value": "+14155552671",
+                "summary": "US phone number"
+              },
+              "international": {
+                "value": "+442071234567",
+                "summary": "UK phone number"
+              },
+              "without_plus": {
+                "value": "14155552671",
+                "summary": "Number without plus sign"
+              }
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Plant response",
+            "description": "Successfully checked phone number",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed per month",
+                "schema": {
+                  "type": "integer",
+                  "example": 10000
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining in current month",
+                "schema": {
+                  "type": "integer",
+                  "example": 9847
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
+                  "$ref": "#/components/schemas/PhoneNumberResponse"
+                },
+                "examples": {
+                  "found_in_dnc": {
+                    "summary": "Phone number found in DNC registry",
+                    "value": {
+                      "do_not_call": true,
+                      "timestamp": "2025-12-16T14:32:10.123456789Z",
+                      "dnc_list_source": "https://us.gov"
+                    }
+                  },
+                  "not_in_dnc": {
+                    "summary": "Phone number not in DNC registry",
+                    "value": {
+                      "do_not_call": false,
+                      "timestamp": "2025-12-16T14:32:10.123456789Z",
+                      "dnc_list_source": null
+                    }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Unexpected error",
+            "description": "Bad request - invalid or missing phone number",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "description": "Creates a new plant in the store",
-        "requestBody": {
-          "description": "Plant to add to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "plant response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Plant"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missing_parameter": {
+                    "summary": "Missing phone_number parameter",
+                    "value": {
+                      "error": "Missing phone_number parameter"
+                    }
+                  },
+                  "malformed_number": {
+                    "summary": "Malformed phone number",
+                    "value": {
+                      "error": "phone number is malformed - please double check the format and try again"
+                    }
+                  }
                 }
               }
             }
           },
-          "400": {
-            "description": "unexpected error",
+          "401": {
+            "description": "Unauthorized - missing API key",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missing_auth": {
+                    "summary": "No Authorization header provided",
+                    "value": {
+                      "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                    }
+                  }
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of plant to delete",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
           },
-          "400": {
-            "description": "unexpected error",
+          "403": {
+            "description": "Forbidden - invalid API key",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_key": {
+                    "summary": "API key is invalid or inactive",
+                    "value": {
+                      "error": "invalid API key"
+                    }
+                  }
                 }
               }
             }
-          }
-        }
-      }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
-      "post": {
-        "description": "Information about a new plant added to the store",
-        "requestBody": {
-          "description": "Plant added to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed per month",
+                "schema": {
+                  "type": "integer",
+                  "example": 10000
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining (will be 0)",
+                "schema": {
+                  "type": "integer",
+                  "example": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "limit_exceeded": {
+                    "summary": "Monthly request limit reached",
+                    "value": {
+                      "error": "Rate limit exceeded. Please try again next month or contact support."
+                    }
+                  }
+                }
               }
             }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "auth_error": {
+                    "summary": "Authentication service error",
+                    "value": {
+                      "error": "Authentication service error"
+                    }
+                  },
+                  "processing_error": {
+                    "summary": "Unable to process request",
+                    "value": {
+                      "error": "unable to process request"
+                    }
+                  },
+                  "database_error": {
+                    "summary": "Internal server error during query",
+                    "value": {
+                      "error": "Internal server error"
+                    }
+                  },
+                  "usage_update_error": {
+                    "summary": "Failed to update usage statistics",
+                    "value": {
+                      "error": "Failed to update usage statistics"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
     }
   },
   "components": {
-    "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
-          },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
-          }
-        }
-      },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
-        ]
-      },
-      "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "scheme": "bearer"
+        "scheme": "bearer",
+        "bearerFormat": "API-KEY",
+        "description": "API key authentication. Provide your API key in the Authorization header:\n\n`Authorization: Bearer YOUR_API_KEY`\n\nYou can also omit the \"Bearer\" prefix:\n\n`Authorization: YOUR_API_KEY`"
+      }
+    },
+    "schemas": {
+      "PhoneNumberResponse": {
+        "type": "object",
+        "required": [
+          "do_not_call",
+          "timestamp"
+        ],
+        "properties": {
+          "do_not_call": {
+            "type": "boolean",
+            "description": "Whether the phone number is on a Do Not Call list",
+            "example": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 timestamp of when the check was performed",
+            "example": "2025-12-16T14:32:10.123456789Z"
+          },
+          "dnc_list_source": {
+            "type": "string",
+            "nullable": true,
+            "description": "The source of the DNC listing (null if not on any list)",
+            "example": "National Do Not Call Registry"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "example": "Invalid API key"
+          }
+        }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Phone Numbers",
+      "description": "Phone number validation and DNC checking"
+    }
+  ]
 }
