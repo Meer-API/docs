@@ -25,11 +25,6 @@
         "tab": "API Reference",
         "groups": [
           {
-            "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
             "openapi": {
               "source": "/api-reference/openapi.json",
               "directory": "api-reference"
