@@ -5,31 +5,23 @@ description: "Working with Meer API is a simple two-step process."
 
 ### Step 1: Sign up for an API Key
 
-<AccordionGroup>
-  <Accordion title="Get a key from https://meerapi.com" icon="user-plus">
-    Request a key at [the Meer API official website](https://www.meerapi.com/) - this process will soon be automated.
-  </Accordion>
-</AccordionGroup>
+Request a key at [the Meer API official website](https://www.meerapi.com/) - this process will soon be automated.
 
 ### Step 2: Start querying
 
-<AccordionGroup>
-  <Accordion title="Query our APIs" icon="search">
-    Use your token to query our HTTPS API
+Use your token to query our HTTPS API
 
-    <RequestExample>
+<RequestExample>
 
-    ```filename
-    curl --request GET \
-      --url https://api.meerapi.com/check_phone_number \
-      --header 'Authorization: Bearer <token>'
-    ```
+```filename
+curl --request GET \
+  --url https://api.meerapi.com/check_phone_number \
+  --header 'Authorization: Bearer <token>'
+```
 
-    </RequestExample>
+</RequestExample>
 
-    Follow the link below for full documentation and examples
-  </Accordion>
-</AccordionGroup>
+Follow the link below for full documentation and examples
 
 <CardGroup cols={2}>
   <Card title="API Documentation" icon="code" href="/api-reference/introduction" cta="Check out the documentation">
