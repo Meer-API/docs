@@ -14,11 +14,9 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Quickstart",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "guides/quickstart"
             ]
           }
         ]
