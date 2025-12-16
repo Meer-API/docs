@@ -23,15 +23,17 @@
       },
       {
         "tab": "API Reference",
-        "pages": [
-          "api-reference/introduction",
+        "groups": [
           {
-            "group": "Endpoints",
             "pages": [
-              {
-                "openapi": "/api-reference/openapi.json"
-              }
+              "api-reference/introduction"
             ]
+          },
+          {
+            "openapi": {
+              "source": "/api-reference/openapi.json",
+              "directory": "api-reference"
+            }
           }
         ]
       }
