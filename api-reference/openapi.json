@@ -221,9 +221,9 @@
                 },
                 "examples": {
                   "auth_error": {
-                    "summary": "Authentication service error",
+                    "summary": "Internal server error",
                     "value": {
-                      "error": "Authentication service error"
+                      "error": "Internal server error"
                     }
                   },
                   "processing_error": {
