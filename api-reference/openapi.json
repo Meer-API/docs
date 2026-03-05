@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Meer API",
-    "description": "API for checking phone numbers against Do Not Call (DNC) registries.\n\n## Authentication\nAll endpoints require API key authentication via the `Authorization` header.\n\n## Rate Limiting\nRequests are limited on a monthly basis per customer. Rate limit information is provided in response headers.",
+    "description": "API for checking phone numbers against Do Not Call (DNC) registries.\n\n## Authentication\nAll endpoints require API key authentication via the `Authorization` header.\n\n## Rate Limiting\nRequests are limited on a monthly basis per customer. Rate limit information is provided in response headers.\n\n## Reseller Usage\nIf you are a **reseller** integrating the Meer API on behalf of your customers, you **must** include the `X-Forwarded-Host` header on every request. This header identifies the domain of the end customer consuming the API and is required for proper attribution, rate limiting, and compliance tracking. Requests from resellers that omit this header may be rejected.",
     "version": "1.0.0",
     "contact": {
       "name": "API Support"
@@ -23,7 +23,7 @@
     "/check_phone_number": {
       "get": {
         "summary": "Check phone number against DNC registry",
-        "description": "Validates a phone number and checks if it appears in any Do Not Call registries. Returns DNC status and source information if found.\n\nNote: Phone numbers should follow the E.164 format for best results - i.e. `+<country-code> <phone-number>`.\n\nFor countries like the USA or Canada there isn't much difference between dialing locally or internationally, i.e. `+1 (678) 123-4567` versus `(678) 123-4567`. For countries like the United Kingdom however, there's a bigger difference between local and international format, i.e. `01000822380` would become `+44 1000822380` - notice we drop the leading 0. We will still try our best to match your number to our database, but know that this has limitations.\n\n**Rate Limiting:** This endpoint counts against your monthly request limit.",
+        "description": "Validates a phone number and checks if it appears in any Do Not Call registries. Returns DNC status and source information if found.\n\nNote: Phone numbers should follow the E.164 format for best results - i.e. `+<country-code> <phone-number>`.\n\nFor countries like the USA or Canada there isn't much difference between dialing locally or internationally, i.e. `+1 (678) 123-4567` versus `(678) 123-4567`. For countries like the United Kingdom however, there's a bigger difference between local and international format, i.e. `01000822380` would become `+44 1000822380` - notice we drop the leading 0. We will still try our best to match your number to our database, but know that this has limitations.\n\n**Rate Limiting:** This endpoint counts against your monthly request limit.\n\n**Resellers:** If you are a reseller, you **must** provide the `X-Forwarded-Host` header containing the domain name of the customer on whose behalf this request is being made.",
         "operationId": "checkPhoneNumber",
         "tags": [
           "Phone Numbers"
@@ -49,6 +49,21 @@
               "without_plus": {
                 "value": "14155552671",
                 "summary": "Number without plus sign"
+              }
+            }
+          },
+          {
+            "name": "X-Forwarded-Host",
+            "in": "header",
+            "required": false,
+            "description": "The domain name of the end customer consuming the API. **Required for resellers** — if you are integrating the Meer API on behalf of customers, you must set this header to the customer's domain (e.g., `customer.example.com`) on every request. This is used for per-customer attribution, rate limiting, and compliance tracking. Direct (non-reseller) API consumers may omit this header.",
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "reseller_customer": {
+                "value": "customer.example.com",
+                "summary": "Customer domain for a reseller request"
               }
             }
           }
