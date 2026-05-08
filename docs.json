@@ -26,7 +26,8 @@
         "openapi": "/api-reference/openapi.json",
         "pages": [
           "/api-reference/introduction",
-          "GET /check_phone_number"
+          "GET /check_phone_number",
+          "api-reference/usage-stats"
         ]
       }
     ],
