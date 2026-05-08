@@ -70,5 +70,8 @@
    ]
   },
   "footer": {
+  },
+  "api": {
+    "openapi": "openapi(1).json"
   }
 }

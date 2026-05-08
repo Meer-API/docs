@@ -1,0 +1,489 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Meer API",
+    "description": "API for checking phone numbers against Do Not Call (DNC) registries.\n\n## Authentication\nAll endpoints require API key authentication via the `Authorization` header.\n\n## Rate Limiting\nRequests are limited on a monthly basis per customer. Rate limit information is provided in response headers.\n\n## Reseller Usage\nIf you are a **reseller** integrating the Meer API on behalf of your customers, you **must** include the `X-Forwarded-Host` header on every request. This header identifies the domain of the end customer consuming the API and is required for proper attribution, rate limiting, and compliance tracking. Requests from resellers that omit this header may be rejected.",
+    "version": "1.1.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.meerapi.com",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/check_phone_number": {
+      "get": {
+        "summary": "Check phone number against DNC registry",
+        "description": "Validates a phone number and checks if it appears in any Do Not Call registries. Returns DNC status and source information if found.\n\nNote: Phone numbers should follow the E.164 format for best results - i.e. `+<country-code> <phone-number>`.\n\nFor countries like the USA or Canada there isn't much difference between dialing locally or internationally, i.e. `+1 (678) 123-4567` versus `(678) 123-4567`. For countries like the United Kingdom however, there's a bigger difference between local and international format, i.e. `01000822380` would become `+44 1000822380` - notice we drop the leading 0. We will still try our best to match your number to our database, but know that this has limitations.\n\n**Rate Limiting:** This endpoint counts against your monthly request limit.\n\n**Resellers:** If you are a reseller, you **must** provide the `X-Forwarded-Host` header containing the domain name of the customer on whose behalf this request is being made.",
+        "operationId": "checkPhoneNumber",
+        "tags": [
+          "Phone Numbers"
+        ],
+        "parameters": [
+          {
+            "name": "phone_number",
+            "in": "query",
+            "required": true,
+            "description": "Phone number to check (e.164 format recommended, e.g., +1234567890)",
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "us_number": {
+                "value": "+14155552671",
+                "summary": "US phone number"
+              },
+              "international": {
+                "value": "+442071234567",
+                "summary": "UK phone number"
+              },
+              "without_plus": {
+                "value": "14155552671",
+                "summary": "Number without plus sign"
+              }
+            }
+          },
+          {
+            "name": "X-Forwarded-Host",
+            "in": "header",
+            "required": false,
+            "description": "The domain name of the end customer consuming the API. **Required for resellers** — if you are integrating the Meer API on behalf of customers, you must set this header to the customer's domain (e.g., `customer.example.com`) on every request. This is used for per-customer attribution, rate limiting, and compliance tracking. Direct (non-reseller) API consumers may omit this header.",
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "reseller_customer": {
+                "value": "customer.example.com",
+                "summary": "Customer domain for a reseller request"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully checked phone number",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed per month",
+                "schema": {
+                  "type": "integer",
+                  "example": 10000
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining in current month",
+                "schema": {
+                  "type": "integer",
+                  "example": 9847
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneNumberResponse"
+                },
+                "example": {
+                  "do_not_call": false,
+                  "timestamp": "2025-12-16T14:32:10.123456789Z",
+                  "dnc_list_source": null
+                },
+                "examples": {
+                  "found_in_dnc": {
+                    "summary": "Phone number found in DNC registry",
+                    "value": {
+                      "do_not_call": true,
+                      "timestamp": "2025-12-16T14:32:10.123456789Z",
+                      "dnc_list_source": "https://us.gov"
+                    }
+                  },
+                  "not_in_dnc": {
+                    "summary": "Phone number not in DNC registry",
+                    "value": {
+                      "do_not_call": false,
+                      "timestamp": "2025-12-16T14:32:10.123456789Z",
+                      "dnc_list_source": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid or missing phone number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Missing phone_number parameter"
+                },
+                "examples": {
+                  "missing_parameter": {
+                    "summary": "Missing phone_number parameter",
+                    "value": {
+                      "error": "Missing phone_number parameter"
+                    }
+                  },
+                  "malformed_number": {
+                    "summary": "Malformed phone number",
+                    "value": {
+                      "error": "phone number is malformed - please double check the format and try again"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                },
+                "examples": {
+                  "missing_auth": {
+                    "summary": "No Authorization header provided",
+                    "value": {
+                      "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "invalid API key"
+                },
+                "examples": {
+                  "invalid_key": {
+                    "summary": "API key is invalid or inactive",
+                    "value": {
+                      "error": "invalid API key"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Maximum number of requests allowed per month",
+                "schema": {
+                  "type": "integer",
+                  "example": 10000
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Number of requests remaining (will be 0)",
+                "schema": {
+                  "type": "integer",
+                  "example": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Rate limit exceeded. Please try again next month or contact support."
+                },
+                "examples": {
+                  "limit_exceeded": {
+                    "summary": "Monthly request limit reached",
+                    "value": {
+                      "error": "Rate limit exceeded. Please try again next month or contact support."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                },
+                "examples": {
+                  "auth_error": {
+                    "summary": "Internal server error",
+                    "value": {
+                      "error": "Internal server error"
+                    }
+                  },
+                  "processing_error": {
+                    "summary": "Unable to process request",
+                    "value": {
+                      "error": "unable to process request"
+                    }
+                  },
+                  "database_error": {
+                    "summary": "Internal server error during query",
+                    "value": {
+                      "error": "Internal server error"
+                    }
+                  },
+                  "usage_update_error": {
+                    "summary": "Failed to update usage statistics",
+                    "value": {
+                      "error": "Failed to update usage statistics"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usage_stats": {
+      "get": {
+        "summary": "Get authenticated customer's API usage breakdown",
+        "description": "Returns the calling customer's lifetime API usage broken down by month and by country.\n\nUsage is scoped automatically to the customer who owns the API key — there are no body, path, or query parameters that accept a customer identity. A caller can only see usage for the customer their key is bound to.\n\n**Rate Limiting:** This endpoint does **not** consume your monthly request quota — viewing your own usage is free.\n\n**Country counts caveat:** Per-country counts are sourced from request access logs, which began collection after the per-month billing counters. For customers older than the access-log table, `sum(by_country.request_count)` may be lower than `total_requests` — that is expected and not a bug. The `monthly` array is the authoritative source for billing-related totals.\n\n**Country codes** in `by_country` are ISO 3166-1 alpha-2 (e.g., `US`, `GB`, `IE`).",
+        "operationId": "getUsageStats",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage breakdown for the authenticated customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageStatsResponse"
+                },
+                "example": {
+                  "customer_name": "acme_corp",
+                  "total_requests": 4823,
+                  "monthly": [
+                    { "year": 2026, "month": 3, "request_count": 1500 },
+                    { "year": 2026, "month": 4, "request_count": 2100 },
+                    { "year": 2026, "month": 5, "request_count": 1223 }
+                  ],
+                  "by_country": [
+                    { "country": "US", "request_count": 3200 },
+                    { "country": "ES", "request_count": 1100 },
+                    { "country": "IE", "request_count": 523 }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "invalid API key"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "unable to process request"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API-KEY",
+        "description": "API key authentication. Provide your API key in the Authorization header:\n\n`Authorization: Bearer YOUR_API_KEY`\n\nYou can also omit the \"Bearer\" prefix:\n\n`Authorization: YOUR_API_KEY`"
+      }
+    },
+    "schemas": {
+      "PhoneNumberResponse": {
+        "type": "object",
+        "required": [
+          "do_not_call",
+          "timestamp"
+        ],
+        "properties": {
+          "do_not_call": {
+            "type": "boolean",
+            "description": "Whether the phone number is on a Do Not Call list",
+            "example": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 timestamp of when the check was performed",
+            "example": "2025-12-16T14:32:10.123456789Z"
+          },
+          "dnc_list_source": {
+            "type": "string",
+            "nullable": true,
+            "description": "The source of the DNC listing (null if not on any list)",
+            "example": "National Do Not Call Registry"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "example": "Invalid API key"
+          }
+        }
+      },
+      "MonthlyUsage": {
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "request_count"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "Calendar year (UTC)",
+            "example": 2026
+          },
+          "month": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Calendar month (UTC, 1-12)",
+            "example": 5
+          },
+          "request_count": {
+            "type": "integer",
+            "description": "Number of billable requests recorded for this customer in this month",
+            "example": 1223
+          }
+        }
+      },
+      "CountryUsage": {
+        "type": "object",
+        "required": [
+          "country",
+          "request_count"
+        ],
+        "properties": {
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code (e.g., `US`, `GB`, `IE`)",
+            "example": "US"
+          },
+          "request_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of requests resolved to this country across all time",
+            "example": 3200
+          }
+        }
+      },
+      "UsageStatsResponse": {
+        "type": "object",
+        "required": [
+          "customer_name",
+          "total_requests",
+          "monthly",
+          "by_country"
+        ],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "description": "The customer the API key is bound to",
+            "example": "acme_corp"
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sum of all `monthly[].request_count` values — the canonical lifetime usage total",
+            "example": 4823
+          },
+          "monthly": {
+            "type": "array",
+            "description": "Per-month request counts, sorted ascending by `(year, month)`. Months with zero usage may be omitted.",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyUsage"
+            }
+          },
+          "by_country": {
+            "type": "array",
+            "description": "Per-country request counts across all time, sorted by `request_count` descending then `country` ascending. May be empty for very new customers.",
+            "items": {
+              "$ref": "#/components/schemas/CountryUsage"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Phone Numbers",
+      "description": "Phone number validation and DNC checking"
+    },
+    {
+      "name": "Usage",
+      "description": "Customer usage analytics"
+    }
+  ]
+}
