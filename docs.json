@@ -29,10 +29,6 @@
           "GET /check_phone_number",
           "api-reference/usage-stats"
         ]
-      },
-      {
-        "tab": "Untitled Tab",
-        "openapi": "api-reference/openapi.json"
       }
     ],
     "global": {

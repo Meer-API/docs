@@ -1,3 +1,132 @@
 ---
 title: "usage_stats"
 ---
+
+Returns the calling customer's lifetime API usage broken down by month and by country.
+
+Usage is scoped automatically to the customer who owns the API key — there are no body, path, or query parameters that accept a customer identity. A caller can only see usage for the customer their key is bound to.
+
+The response gives you three views of the same underlying data:
+
+- `total_requests` — the canonical lifetime total, computed as the sum of `monthly[].request_count`.
+
+- `monthly` — a per-month breakdown, sorted ascending by `(year, month)`. Months with no recorded usage may be omitted.
+
+- `by_country` — a flat per-country breakdown across all time, sorted by `request_count` descending then `country` ascending.
+
+**Rate Limiting:** This endpoint does **not** consume your monthly request quota — viewing your own usage is free.
+
+**Country codes** in `by_country` are ISO 3166-1 alpha-2 (e.g., `US`, `GB`, `IE`)
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  API key authentication. Provide your API key in the Authorization header:
+
+  `Authorization: Bearer YOUR_API_KEY`
+
+  You can also omit the "Bearer" prefix:
+
+  `Authorization: YOUR_API_KEY`
+</ParamField>
+
+## Response
+
+<ResponseExample>
+
+```text 200
+{
+    "customer_name": "www.customer.com",
+    "total_requests": 100,
+    "monthly": [
+        {
+            "year": 2026,
+            "month": 2,
+            "request_count": 100
+        },
+        {
+            "year": 2026,
+            "month": 3,
+            "request_count": 200
+        },
+        {
+            "year": 2026,
+            "month": 4,
+            "request_count": 300
+        },
+        {
+            "year": 2026,
+            "month": 5,
+            "request_count": 400
+        }
+    ],
+    "by_country": [
+        {
+            "country": "GB",
+            "request_count": 700
+        },
+        {
+            "country": "US",
+            "request_count": 200
+        },
+        {
+            "country": "FR",
+            "request_count": 100
+        }
+    ]
+}
+```
+
+```text 401
+Unauthorized - missing API key
+```
+
+```text 403
+Forbidden - invalid API keyForbidden - invalid API key
+```
+
+```text 500
+Internal Server Error
+```
+
+</ResponseExample>
+
+<ResponseField name="customer_name" type="string">
+  The name of your customer account
+</ResponseField>
+
+<ResponseField name="total_requests" type="int">
+  The total number of requests you have made to our API
+</ResponseField>
+
+<ResponseField name="monthly" type="object">
+  An aggregation of the details of your requests by year, mount, and request count
+
+  ```text
+  "monthly": [
+          {
+              "year": 2026,
+              "month": 2,
+              "request_count": 583
+          },
+          {
+              "year": 2026,
+              "month": 3,
+              "request_count": 14542
+          }
+  ]
+  ```
+</ResponseField>
+
+<ResponseField name="by_country" type="object">
+  A list of all requests made by country
+
+  ```text
+  "by_country": [
+          {
+              "country": "GB",
+              "request_count": 32895
+          }
+  ]
+  ```
+</ResponseField>
