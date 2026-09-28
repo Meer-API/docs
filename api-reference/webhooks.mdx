@@ -12,7 +12,7 @@ Webhook lookups are an additional supported path that allow us to return results
 From there we will then `POST` the result to that URL when it's ready. You can optionally use this whenever you want an asynchronous based flow, OR when certain countries require it.
 
 The countries that have a hard requirement to use webhook mode are:
-- Australia (AU) - this can be between 10 minutes to 24 hours
+- Australia (AU) - this can be between 30 seconds to 24 hours
 
 For most countries this should only take a few seconds at most under nominal conditions. For our special cases listed above, we will have different timings available.
 
@@ -155,6 +155,6 @@ Client errors where possible return immediately instead of charging you:
 |---|---|
 | US, GB, DE, IE, BE, NZ | A few seconds |
 | ES | A few seconds |
-| AU | Between 10 minutes and 24 hours |
+| AU | Between 30 seconds and 24 hours |
 
 A `lookup_expired` push arrives 24 hours after the receipt.
