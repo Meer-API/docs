@@ -25,9 +25,10 @@
         "tab": "API Reference",
         "openapi": "/api-reference/openapi.json",
         "pages": [
-          "/api-reference/introduction",
+          "api-reference/introduction",
           "GET /check_phone_number",
-          "api-reference/usage-stats"
+          "api-reference/webhooks",
+          "GET /usage_stats"
         ]
       }
     ],
@@ -55,19 +56,25 @@
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
-  "footer": {
-  },
-  "api": {
-    "openapi": "openapi(1).json"
-  }
+  "footer": {},
+  "redirects": [
+    {
+      "source": "/api-reference/phone-numbers/check-phone-number-against-dnc-registry",
+      "destination": "/api-reference/phone-numbers/check-a-phone-number"
+    },
+    {
+      "source": "/api-reference/usage-stats",
+      "destination": "/api-reference/usage/get-usage"
+    }
+  ]
 }

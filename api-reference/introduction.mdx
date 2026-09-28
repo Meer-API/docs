@@ -1,6 +1,34 @@
 ---
 title: "Introduction"
-description: "This is the API reference for Meer API - check out the endpoints for more information on how to query each endpoint.
-
-All endpoints require an API key in the Authorization Header"
+description: "Base URL, authentication and credits."
 ---
+
+Base URL: `https://api.meerapi.com`
+
+## Authentication
+
+Send your API key in the `Authorization` header. The `Bearer` prefix is optional.
+
+```
+Authorization: Bearer <YOUR_API_KEY>
+```
+
+A missing key returns `401`, an invalid one `403`.
+
+## Credits
+
+Each lookup uses credits from your limit for the billing period. The cost varies by country. The `/usage_stats` endpoint is the exception and is free.
+
+`X-Credit-Cost`, `X-RateLimit-Limit` and `X-RateLimit-Remaining` report the lookup's cost, your limit and what's left. The response body's `cost` object has the same figures. Once you reach the limit, requests return `429` until the next billing period or a credit top-up.
+
+## Sync or webhook
+
+`/check_phone_number` returns the answer directly by default. Pass `webhook_url` to get a `202` receipt instead and have the answer POSTed to you. See [Webhooks](/api-reference/webhooks).
+
+## Correlation ID
+
+`/check_phone_number` responses include an `X-Meer-Correlation-Id` header. Quote it when you contact support.
+
+## Resellers
+
+If you call the API on behalf of your own customers, it is REQUIRED that you send `X-Forwarded-Host` on every request, set to the end customer's unique ID.

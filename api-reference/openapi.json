@@ -2,10 +2,11 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Meer API",
-    "description": "API for checking phone numbers against Do Not Call (DNC) registries.\n\n## Authentication\nAll endpoints require API key authentication via the `Authorization` header.\n\n## Rate Limiting\nRequests are limited on a monthly basis per customer. Rate limit information is provided in response headers.\n\n## Reseller Usage\nIf you are a **reseller** integrating the Meer API on behalf of your customers, you **must** include the `X-Forwarded-Host` header on every request. This header identifies the domain of the end customer consuming the API and is required for proper attribution, rate limiting, and compliance tracking. Requests from resellers that omit this header may be rejected.",
-    "version": "1.1.0",
+    "version": "1.2.0",
+    "description": "Check phone numbers against national do-not-call registers.\n\nAuthenticate with `Authorization: Bearer <YOUR_API_KEY>`. The `Bearer` prefix is optional.\n\nLookups use credits from your limit for the billing period. The cost varies by country; each response reports it in `X-Credit-Cost` and `cost`.\n\nResellers must send `X-Forwarded-Host` with a unique ID for the end customer on every request.",
     "contact": {
-      "name": "API Support"
+      "name": "API Support",
+      "email": "support@meerapi.com"
     }
   },
   "servers": [
@@ -16,102 +17,144 @@
   ],
   "security": [
     {
-      "bearerAuth": []
+      "apiKey": []
     }
   ],
   "paths": {
     "/check_phone_number": {
       "get": {
-        "summary": "Check phone number against DNC registry",
-        "description": "Validates a phone number and checks if it appears in any Do Not Call registries. Returns DNC status and source information if found.\n\nNote: Phone numbers should follow the E.164 format for best results - i.e. `+<country-code> <phone-number>`.\n\nFor countries like the USA or Canada there isn't much difference between dialing locally or internationally, i.e. `+1 (678) 123-4567` versus `(678) 123-4567`. For countries like the United Kingdom however, there's a bigger difference between local and international format, i.e. `01000822380` would become `+44 1000822380` - notice we drop the leading 0. We will still try our best to match your number to our database, but know that this has limitations.\n\n**Rate Limiting:** This endpoint counts against your monthly request limit.\n\n**Resellers:** If you are a reseller, you **must** provide the `X-Forwarded-Host` header containing the domain name of the customer on whose behalf this request is being made.",
         "operationId": "checkPhoneNumber",
         "tags": [
           "Phone Numbers"
         ],
+        "summary": "Check a phone number",
+        "description": "Returns whether the number is on its country's do-not-call register. Send `webhook_url` to get the answer as a POST instead. See [Webhooks](/api-reference/webhooks).\n\nSend numbers in E.164 with the national leading zero dropped: UK `01000822380` is `+441000822380`.",
         "parameters": [
           {
             "name": "phone_number",
             "in": "query",
             "required": true,
-            "description": "Phone number to check (e.164 format recommended, e.g., +1234567890)",
+            "description": "E.164, URL-encoded (`+` becomes `%2B`). The `+` is optional.",
             "schema": {
               "type": "string"
             },
             "examples": {
-              "us_number": {
-                "value": "+14155552671",
-                "summary": "US phone number"
+              "au": {
+                "summary": "AU number",
+                "value": "+61491570006"
               },
-              "international": {
-                "value": "+442071234567",
-                "summary": "UK phone number"
+              "us": {
+                "summary": "US number",
+                "value": "+14155552671"
               },
-              "without_plus": {
-                "value": "14155552671",
-                "summary": "Number without plus sign"
+              "gb": {
+                "summary": "UK number",
+                "value": "+442071234567"
               }
+            }
+          },
+          {
+            "name": "webhook_url",
+            "in": "query",
+            "required": false,
+            "description": "Turns on webhook mode. https only, at most 2048 characters, a public host, no embedded credentials.",
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048
             }
           },
           {
             "name": "X-Forwarded-Host",
             "in": "header",
             "required": false,
-            "description": "The domain name of the end customer consuming the API. **Required for resellers** — if you are integrating the Meer API on behalf of customers, you must set this header to the customer's domain (e.g., `customer.example.com`) on every request. This is used for per-customer attribution, rate limiting, and compliance tracking. Direct (non-reseller) API consumers may omit this header.",
+            "description": "Resellers only, and required for them: a unique identifier for your customer that you must be able to provide exact details for e.g. `id-123` that we can later link to a customer name",
             "schema": {
               "type": "string"
-            },
-            "examples": {
-              "reseller_customer": {
-                "value": "customer.example.com",
-                "summary": "Customer domain for a reseller request"
-              }
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successfully checked phone number",
+            "description": "The answer.",
             "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              },
+              "X-Credit-Cost": {
+                "$ref": "#/components/headers/CreditCost"
+              },
               "X-RateLimit-Limit": {
-                "description": "Maximum number of requests allowed per month",
-                "schema": {
-                  "type": "integer",
-                  "example": 10000
-                }
+                "$ref": "#/components/headers/RateLimitLimit"
               },
               "X-RateLimit-Remaining": {
-                "description": "Number of requests remaining in current month",
-                "schema": {
-                  "type": "integer",
-                  "example": 9847
-                }
+                "$ref": "#/components/headers/RateLimitRemaining"
               }
             },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PhoneNumberResponse"
-                },
-                "example": {
-                  "do_not_call": false,
-                  "timestamp": "2025-12-16T14:32:10.123456789Z",
-                  "dnc_list_source": null
+                  "$ref": "#/components/schemas/Answer"
                 },
                 "examples": {
-                  "found_in_dnc": {
-                    "summary": "Phone number found in DNC registry",
+                  "listed": {
                     "value": {
                       "do_not_call": true,
-                      "timestamp": "2025-12-16T14:32:10.123456789Z",
-                      "dnc_list_source": "https://us.gov"
-                    }
+                      "timestamp": "2026-09-28T04:01:05.123456+00:00",
+                      "dnc_list_source": "https://www.donotcall.gov.au",
+                      "cost": {
+                        "credits_used_for_query": 2,
+                        "total_credits_used": 5120,
+                        "credit_limit": 25000
+                      }
+                    },
+                    "summary": "On the register"
                   },
-                  "not_in_dnc": {
-                    "summary": "Phone number not in DNC registry",
+                  "not_listed": {
+                    "summary": "Not on the register",
                     "value": {
                       "do_not_call": false,
-                      "timestamp": "2025-12-16T14:32:10.123456789Z",
-                      "dnc_list_source": null
+                      "timestamp": "2026-09-28T04:01:05.123456+00:00",
+                      "dnc_list_source": null,
+                      "cost": {
+                        "credits_used_for_query": 1,
+                        "total_credits_used": 5121,
+                        "credit_limit": 25000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Webhook mode: the lookup is queued. The answer is POSTed to `webhook_url`.",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              },
+              "X-Credit-Cost": {
+                "$ref": "#/components/headers/CreditCost"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                },
+                "examples": {
+                  "started": {
+                    "value": {
+                      "status": "started",
+                      "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+                      "phone_number": "+61491570006",
+                      "country": "AU"
                     }
                   }
                 }
@@ -119,26 +162,50 @@
             }
           },
           "400": {
-            "description": "Bad request - invalid or missing phone number",
+            "description": "Bad request, or the register rejected the number (`invalid_phone_number`, charged).",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "Missing phone_number parameter"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LookupError"
+                    }
+                  ]
                 },
                 "examples": {
                   "missing_parameter": {
-                    "summary": "Missing phone_number parameter",
                     "value": {
-                      "error": "Missing phone_number parameter"
+                      "error": "missing phone_number parameter"
+                    }
+                  },
+                  "not_e164": {
+                    "value": {
+                      "error": "phone number is not in e.164 format - please double check the format and try again"
                     }
                   },
                   "malformed_number": {
-                    "summary": "Malformed phone number",
                     "value": {
                       "error": "phone number is malformed - please double check the format and try again"
+                    }
+                  },
+                  "bad_webhook_url": {
+                    "value": {
+                      "error": "webhook_url is invalid: only https URLs are accepted"
+                    }
+                  },
+                  "invalid_phone_number": {
+                    "value": {
+                      "error": "DNC provider marked the phone number as invalid",
+                      "error_code": "invalid_phone_number",
+                      "charged": true
                     }
                   }
                 }
@@ -146,18 +213,14 @@
             }
           },
           "401": {
-            "description": "Unauthorized - missing API key",
+            "description": "Missing API key.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                  "$ref": "#/components/schemas/RequestError"
                 },
                 "examples": {
-                  "missing_auth": {
-                    "summary": "No Authorization header provided",
+                  "missing_key": {
                     "value": {
                       "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
                     }
@@ -167,18 +230,14 @@
             }
           },
           "403": {
-            "description": "Forbidden - invalid API key",
+            "description": "Invalid API key.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "invalid API key"
+                  "$ref": "#/components/schemas/RequestError"
                 },
                 "examples": {
                   "invalid_key": {
-                    "summary": "API key is invalid or inactive",
                     "value": {
                       "error": "invalid API key"
                     }
@@ -187,35 +246,53 @@
               }
             }
           },
-          "429": {
-            "description": "Rate limit exceeded",
+          "422": {
+            "description": "Unsupported country.",
             "headers": {
-              "X-RateLimit-Limit": {
-                "description": "Maximum number of requests allowed per month",
-                "schema": {
-                  "type": "integer",
-                  "example": 10000
-                }
-              },
-              "X-RateLimit-Remaining": {
-                "description": "Number of requests remaining (will be 0)",
-                "schema": {
-                  "type": "integer",
-                  "example": 0
-                }
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
               }
             },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "Rate limit exceeded. Please try again next month or contact support."
+                  "$ref": "#/components/schemas/RequestError"
                 },
                 "examples": {
-                  "limit_exceeded": {
-                    "summary": "Monthly request limit reached",
+                  "unsupported_country": {
+                    "value": {
+                      "error": "country not supported",
+                      "country": "CN",
+                      "supported_countries": [
+                        "US",
+                        "GB",
+                        "DE",
+                        "IE",
+                        "BE",
+                        "NZ",
+                        "ES",
+                        "AU"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Credit limit reached. Requests return 429 until the next billing period or a credit top-up.",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "examples": {
+                  "exhausted": {
                     "value": {
                       "error": "Rate limit exceeded. Please try again next month or contact support."
                     }
@@ -225,39 +302,230 @@
             }
           },
           "500": {
-            "description": "Internal server error",
+            "description": "Server error. `billing_error` means credits could not be settled; `charged` says whether you paid.",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "Internal server error"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LookupError"
+                    }
+                  ]
                 },
                 "examples": {
-                  "auth_error": {
-                    "summary": "Internal server error",
+                  "billing_error": {
                     "value": {
-                      "error": "Internal server error"
+                      "error": "Credit finalization failed",
+                      "error_code": "billing_error",
+                      "charged": false
                     }
                   },
-                  "processing_error": {
-                    "summary": "Unable to process request",
+                  "unable_to_process": {
                     "value": {
                       "error": "unable to process request"
                     }
                   },
-                  "database_error": {
-                    "summary": "Internal server error during query",
-                    "value": {
-                      "error": "Internal server error"
-                    }
-                  },
-                  "usage_update_error": {
-                    "summary": "Failed to update usage statistics",
+                  "usage_update_failed": {
                     "value": {
                       "error": "Failed to update usage statistics"
                     }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream register failed. Synchronous only. Not charged.",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupError"
+                },
+                "examples": {
+                  "upstream_error": {
+                    "value": {
+                      "error": "upstream provider could not process the request",
+                      "error_code": "upstream_error",
+                      "charged": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream register timed out. Synchronous only. Not charged.",
+            "headers": {
+              "X-Meer-Correlation-Id": {
+                "$ref": "#/components/headers/CorrelationId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupError"
+                },
+                "examples": {
+                  "upstream_timeout": {
+                    "value": {
+                      "error": "upstream provider timed out",
+                      "error_code": "upstream_timeout",
+                      "charged": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "callbacks": {
+          "lookupFinished": {
+            "{$request.query.webhook_url}": {
+              "post": {
+                "summary": "Lookup result",
+                "description": "Sent when a webhook lookup finishes. Delivery is at least once, so deduplicate on `correlation_id`. Reply 2xx within 10 seconds. 5xx, 408, 425 and 429 are retried with backoff (30 seconds to 1 hour, up to 10 attempts); other statuses are not. Redirects are not followed.",
+                "parameters": [
+                  {
+                    "name": "X-Meer-Correlation-Id",
+                    "in": "header",
+                    "required": true,
+                    "schema": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  {
+                    "name": "X-Meer-Phone-Number",
+                    "in": "header",
+                    "required": true,
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "X-Meer-Country",
+                    "in": "header",
+                    "required": true,
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "X-Meer-Status",
+                    "in": "header",
+                    "required": true,
+                    "description": "The HTTP status the synchronous lookup would have returned.",
+                    "schema": {
+                      "type": "string",
+                      "enum": [
+                        "200",
+                        "400",
+                        "500",
+                        "502"
+                      ]
+                    }
+                  },
+                  {
+                    "name": "User-Agent",
+                    "in": "header",
+                    "required": true,
+                    "schema": {
+                      "type": "string",
+                      "const": "Meer-Webhooks/1.0"
+                    }
+                  }
+                ],
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/SucceededPush"
+                          },
+                          {
+                            "$ref": "#/components/schemas/FailedPush"
+                          }
+                        ]
+                      },
+                      "examples": {
+                        "succeeded": {
+                          "value": {
+                            "status": "succeeded",
+                            "error_code": null,
+                            "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+                            "phone_number": "+61491570006",
+                            "country": "AU",
+                            "do_not_call": true,
+                            "timestamp": "2026-09-28T04:01:05.123456+00:00",
+                            "dnc_list_source": "https://www.donotcall.gov.au",
+                            "cost": {
+                              "credits_used_for_query": 2,
+                              "total_credits_used": 5120,
+                              "credit_limit": 25000
+                            }
+                          }
+                        },
+                        "invalid_phone_number": {
+                          "value": {
+                            "status": "failed",
+                            "error_code": "invalid_phone_number",
+                            "error": "DNC provider marked the phone number as invalid",
+                            "charged": true,
+                            "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+                            "phone_number": "+61491570006",
+                            "country": "AU"
+                          }
+                        },
+                        "lookup_expired": {
+                          "value": {
+                            "status": "failed",
+                            "error_code": "lookup_expired",
+                            "error": "the lookup could not be completed",
+                            "charged": false,
+                            "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+                            "phone_number": "+61491570006",
+                            "country": "AU"
+                          }
+                        },
+                        "billing_error": {
+                          "value": {
+                            "status": "failed",
+                            "error_code": "billing_error",
+                            "error": "Credit finalization failed",
+                            "charged": false,
+                            "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+                            "phone_number": "+61491570006",
+                            "country": "AU"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "2XX": {
+                    "description": "Delivered. The body is ignored."
+                  },
+                  "4XX": {
+                    "description": "A permanent failure and not retried, except 408, 425 and 429, which are retried with backoff."
+                  },
+                  "5XX": {
+                    "description": "Retried with backoff from 30 seconds up to one hour, for up to 10 attempts."
                   }
                 }
               }
@@ -268,72 +536,109 @@
     },
     "/usage_stats": {
       "get": {
-        "summary": "Get authenticated customer's API usage breakdown",
-        "description": "Returns the calling customer's lifetime API usage broken down by month and by country.\n\nUsage is scoped automatically to the customer who owns the API key — there are no body, path, or query parameters that accept a customer identity. A caller can only see usage for the customer their key is bound to.\n\n**Rate Limiting:** This endpoint does **not** consume your monthly request quota — viewing your own usage is free.\n\n**Country counts caveat:** Per-country counts are sourced from request access logs, which began collection after the per-month billing counters. For customers older than the access-log table, `sum(by_country.request_count)` may be lower than `total_requests` — that is expected and not a bug. The `monthly` array is the authoritative source for billing-related totals.\n\n**Country codes** in `by_country` are ISO 3166-1 alpha-2 (e.g., `US`, `GB`, `IE`).",
         "operationId": "getUsageStats",
         "tags": [
           "Usage"
         ],
+        "summary": "Get usage",
+        "description": "Lifetime request counts for the account that owns the API key, by month and by country. Free.",
         "responses": {
           "200": {
-            "description": "Usage breakdown for the authenticated customer",
+            "description": "Usage for your account.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UsageStatsResponse"
                 },
-                "example": {
-                  "customer_name": "acme_corp",
-                  "total_requests": 4823,
-                  "monthly": [
-                    { "year": 2026, "month": 3, "request_count": 1500 },
-                    { "year": 2026, "month": 4, "request_count": 2100 },
-                    { "year": 2026, "month": 5, "request_count": 1223 }
-                  ],
-                  "by_country": [
-                    { "country": "US", "request_count": 3200 },
-                    { "country": "ES", "request_count": 1100 },
-                    { "country": "IE", "request_count": 523 }
-                  ]
+                "examples": {
+                  "usage": {
+                    "value": {
+                      "customer_name": "acme_corp",
+                      "total_requests": 4823,
+                      "monthly": [
+                        {
+                          "year": 2026,
+                          "month": 3,
+                          "request_count": 1500
+                        },
+                        {
+                          "year": 2026,
+                          "month": 4,
+                          "request_count": 2100
+                        },
+                        {
+                          "year": 2026,
+                          "month": 5,
+                          "request_count": 1223
+                        }
+                      ],
+                      "by_country": [
+                        {
+                          "country": "US",
+                          "request_count": 3200
+                        },
+                        {
+                          "country": "ES",
+                          "request_count": 1100
+                        },
+                        {
+                          "country": "IE",
+                          "request_count": 523
+                        }
+                      ]
+                    }
+                  }
                 }
               }
             }
           },
           "401": {
-            "description": "Unauthorized - missing API key",
+            "description": "Missing API key.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/RequestError"
                 },
-                "example": {
-                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                "examples": {
+                  "missing_key": {
+                    "value": {
+                      "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                    }
+                  }
                 }
               }
             }
           },
           "403": {
-            "description": "Forbidden - invalid API key",
+            "description": "Invalid API key.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/RequestError"
                 },
-                "example": {
-                  "error": "invalid API key"
+                "examples": {
+                  "invalid_key": {
+                    "value": {
+                      "error": "invalid API key"
+                    }
+                  }
                 }
               }
             }
           },
           "500": {
-            "description": "Internal server error",
+            "description": "Server error.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/RequestError"
                 },
-                "example": {
-                  "error": "unable to process request"
+                "examples": {
+                  "unable_to_process": {
+                    "value": {
+                      "error": "unable to process request"
+                    }
+                  }
                 }
               }
             }
@@ -344,50 +649,286 @@
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": {
+      "apiKey": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "API-KEY",
-        "description": "API key authentication. Provide your API key in the Authorization header:\n\n`Authorization: Bearer YOUR_API_KEY`\n\nYou can also omit the \"Bearer\" prefix:\n\n`Authorization: YOUR_API_KEY`"
+        "description": "`Authorization: Bearer <YOUR_API_KEY>`. The `Bearer` prefix is optional.",
+        "bearerFormat": "API key"
+      }
+    },
+    "headers": {
+      "CorrelationId": {
+        "description": "ID of this request and, in webhook mode, of the lookup. Quote it to support.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "CreditCost": {
+        "description": "Credits charged for this lookup.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RateLimitLimit": {
+        "description": "Your credit limit for the billing period.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RateLimitRemaining": {
+        "description": "Credits left in the billing period.",
+        "schema": {
+          "type": "integer"
+        }
       }
     },
     "schemas": {
-      "PhoneNumberResponse": {
+      "Status": {
+        "type": "string",
+        "enum": [
+          "started",
+          "succeeded",
+          "failed"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "invalid_phone_number",
+          "upstream_timeout",
+          "upstream_error",
+          "lookup_expired",
+          "billing_error"
+        ],
+        "description": "See [Webhooks](/api-reference/webhooks#error-codes) for the full table."
+      },
+      "Cost": {
+        "type": "object",
+        "required": [
+          "credits_used_for_query",
+          "total_credits_used",
+          "credit_limit"
+        ],
+        "properties": {
+          "credits_used_for_query": {
+            "type": "integer",
+            "description": "Credits this lookup cost."
+          },
+          "total_credits_used": {
+            "type": "integer",
+            "description": "Credits used in the billing period."
+          },
+          "credit_limit": {
+            "type": "integer",
+            "description": "Your credit limit for the billing period."
+          }
+        }
+      },
+      "Answer": {
         "type": "object",
         "required": [
           "do_not_call",
-          "timestamp"
+          "timestamp",
+          "dnc_list_source",
+          "cost"
         ],
         "properties": {
           "do_not_call": {
             "type": "boolean",
-            "description": "Whether the phone number is on a Do Not Call list",
-            "example": true
+            "description": "`true` if the number is on the register."
           },
           "timestamp": {
             "type": "string",
             "format": "date-time",
-            "description": "RFC3339 timestamp of when the check was performed",
-            "example": "2025-12-16T14:32:10.123456789Z"
+            "description": "When the check ran."
           },
           "dnc_list_source": {
-            "type": "string",
-            "nullable": true,
-            "description": "The source of the DNC listing (null if not on any list)",
-            "example": "National Do Not Call Registry"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The register that answered. Can be `null` when the number is not listed."
+          },
+          "cost": {
+            "$ref": "#/components/schemas/Cost"
           }
         }
       },
-      "ErrorResponse": {
+      "Receipt": {
+        "type": "object",
+        "required": [
+          "status",
+          "correlation_id",
+          "phone_number",
+          "country"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ],
+            "const": "started"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifies the lookup; every push for it carries the same value. Quote it to support."
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        }
+      },
+      "RequestError": {
         "type": "object",
         "required": [
           "error"
         ],
         "properties": {
           "error": {
+            "type": "string"
+          },
+          "country": {
             "type": "string",
-            "description": "Human-readable error message",
-            "example": "Invalid API key"
+            "description": "422 only: the country of the number."
+          },
+          "supported_countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "422 only."
+          }
+        }
+      },
+      "LookupError": {
+        "type": "object",
+        "required": [
+          "error",
+          "error_code",
+          "charged"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "charged": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PushIdentity": {
+        "type": "object",
+        "required": [
+          "status",
+          "error_code",
+          "correlation_id",
+          "phone_number",
+          "country"
+        ],
+        "properties": {
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The correlation_id from the receipt. Deduplicate on it."
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        }
+      },
+      "SucceededPush": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PushIdentity"
+          },
+          {
+            "$ref": "#/components/schemas/Answer"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Status"
+                  }
+                ],
+                "const": "succeeded"
+              },
+              "error_code": {
+                "type": "null"
+              }
+            }
+          }
+        ]
+      },
+      "FailedPush": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PushIdentity"
+          },
+          {
+            "$ref": "#/components/schemas/LookupError"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Status"
+                  }
+                ],
+                "const": "failed"
+              }
+            }
+          }
+        ]
+      },
+      "UsageStatsResponse": {
+        "type": "object",
+        "required": [
+          "customer_name",
+          "total_requests",
+          "monthly",
+          "by_country"
+        ],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "description": "The account the API key belongs to."
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sum of `monthly[].request_count`."
+          },
+          "monthly": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyUsage"
+            },
+            "description": "Oldest month first. Months with no requests may be missing."
+          },
+          "by_country": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryUsage"
+            },
+            "description": "Most requests first, then by country code."
           }
         }
       },
@@ -401,20 +942,17 @@
         "properties": {
           "year": {
             "type": "integer",
-            "description": "Calendar year (UTC)",
-            "example": 2026
+            "description": "UTC year."
           },
           "month": {
             "type": "integer",
             "minimum": 1,
             "maximum": 12,
-            "description": "Calendar month (UTC, 1-12)",
-            "example": 5
+            "description": "UTC month."
           },
           "request_count": {
             "type": "integer",
-            "description": "Number of billable requests recorded for this customer in this month",
-            "example": 1223
+            "description": "Billable requests that month."
           }
         }
       },
@@ -427,50 +965,11 @@
         "properties": {
           "country": {
             "type": "string",
-            "description": "ISO 3166-1 alpha-2 country code (e.g., `US`, `GB`, `IE`)",
-            "example": "US"
+            "description": "ISO 3166-1 alpha-2 code."
           },
           "request_count": {
             "type": "integer",
-            "format": "int64",
-            "description": "Number of requests resolved to this country across all time",
-            "example": 3200
-          }
-        }
-      },
-      "UsageStatsResponse": {
-        "type": "object",
-        "required": [
-          "customer_name",
-          "total_requests",
-          "monthly",
-          "by_country"
-        ],
-        "properties": {
-          "customer_name": {
-            "type": "string",
-            "description": "The customer the API key is bound to",
-            "example": "acme_corp"
-          },
-          "total_requests": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Sum of all `monthly[].request_count` values — the canonical lifetime usage total",
-            "example": 4823
-          },
-          "monthly": {
-            "type": "array",
-            "description": "Per-month request counts, sorted ascending by `(year, month)`. Months with zero usage may be omitted.",
-            "items": {
-              "$ref": "#/components/schemas/MonthlyUsage"
-            }
-          },
-          "by_country": {
-            "type": "array",
-            "description": "Per-country request counts across all time, sorted by `request_count` descending then `country` ascending. May be empty for very new customers.",
-            "items": {
-              "$ref": "#/components/schemas/CountryUsage"
-            }
+            "format": "int64"
           }
         }
       }
@@ -479,11 +978,11 @@
   "tags": [
     {
       "name": "Phone Numbers",
-      "description": "Phone number validation and DNC checking"
+      "description": "Do-not-call lookups"
     },
     {
       "name": "Usage",
-      "description": "Customer usage analytics"
+      "description": "Usage for your account"
     }
   ]
 }

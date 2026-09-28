@@ -1,33 +1,31 @@
 ---
-title: "Consuming the API"
-description: "Working with Meer API is a simple two-step process."
+title: "Quickstart"
+description: "Get a key and make your first lookup."
 ---
 
-### Step 1: Sign up for an API Key
+### 1. Get an API key
 
-Request a key at [the Meer API official website](https://www.meerapi.com/) - this process will soon be automated.
+Request one at [meerapi.com](https://www.meerapi.com/).
 
-### Step 2: Start querying
+### 2. Check a number
 
-Use your token to query our HTTPS APIs - namely we can check if a phone number is on a Do Not Call list as per below. We just need:
-
-- The phone number we want to check
-- An API token
+URL-encode the number (`+` becomes `%2B`):
 
 <RequestExample>
 
-```filename
+```bash
 curl --request GET \
-  --url https://api.meerapi.com/check_phone_number?phone_number=<url-encoded-phone-number> \
-  --header 'Authorization: Bearer <token>'
+  --url 'https://api.meerapi.com/check_phone_number?phone_number=%2B14155552671' \
+  --header 'Authorization: Bearer <YOUR_API_KEY>'
 ```
 
 </RequestExample>
 
-Follow the link below for full documentation and examples
-
 <CardGroup cols={2}>
-  <Card title="API Documentation" icon="code" href="/api-reference/introduction" cta="Check out the documentation">
-    
+  <Card title="API reference" icon="code" href="/api-reference/introduction">
+    Endpoints, errors and credits.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/api-reference/webhooks">
+    Get results as a POST to your URL.
   </Card>
 </CardGroup>

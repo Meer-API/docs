@@ -1,0 +1,160 @@
+---
+title: "Webhooks"
+description: "Get lookup results as a POST to your URL."
+---
+
+<Note>
+  Webhook lookups are rolling out and may not be enabled on your account yet.
+</Note>
+
+Webhook lookups are an additional supported path that allow us to return results to you in a asycnhronous manner. If you want to use a webhook based flow, add a `webhook_url` to your query parameters and we should reply with a `202` right away to indicate that we've received your request.
+
+From there we will then `POST` the result to that URL when it's ready. You can optionally use this whenever you want an asynchronous based flow, OR when certain countries require it.
+
+The countries that have a hard requirement to use webhook mode are:
+- Australia (AU) - this can be between 10 minutes to 24 hours
+
+For most countries this should only take a few seconds at most under nominal conditions. For our special cases listed above, we will have different timings available.
+
+## Start a lookup
+
+```bash
+curl --request GET \
+  --url 'https://api.meerapi.com/check_phone_number?phone_number=%2B61491570006&webhook_url=https%3A%2F%2Fexample.com%2Fhooks%2Fdnc' \
+  --header 'Authorization: Bearer <YOUR_API_KEY>'
+```
+
+| Parameter | Required | Notes |
+|---|---|---|
+| `phone_number` | Yes | E.164, URL-encoded (`+` becomes `%2B`). |
+| `webhook_url` | Yes | Must be `https`, at most 2048 characters, with a public host and no credentials. |
+
+## Receipt
+
+```json 202
+{
+  "status": "started",
+  "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+  "phone_number": "+61491570006",
+  "country": "AU"
+}
+```
+
+`correlation_id` identifies the lookup. Provide this to support if you're having any specific issues
+
+Response headers:
+
+| Header | Value |
+|---|---|
+| `X-Meer-Correlation-Id` | Same as `correlation_id`. |
+| `X-Credit-Cost` | Credits held for the lookup. They're charged when it succeeds and refunded if it fails. |
+| `X-RateLimit-Limit`, `X-RateLimit-Remaining` | Credit limit for the billing period, and credits left. |
+
+## The push
+
+When the lookup finishes we send one `POST` to your URL.
+
+| Header | Value |
+|---|---|
+| `Content-Type` | `application/json` |
+| `User-Agent` | `Meer-Webhooks/1.0` |
+| `X-Meer-Correlation-Id` | The lookup's `correlation_id`. |
+| `X-Meer-Phone-Number` | The number, E.164. |
+| `X-Meer-Country` | ISO 3166-1 alpha-2. |
+| `X-Meer-Status` | The HTTP status the synchronous call would have returned: `200`, `400`, `500` or `502`. |
+
+Every body has `status` (`"succeeded"` or `"failed"`), `error_code` (`null` on success), `correlation_id`, `phone_number` and `country`.
+
+<CodeGroup>
+
+```json Succeeded
+{
+  "status": "succeeded",
+  "error_code": null,
+  "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+  "phone_number": "+61491570006",
+  "country": "AU",
+  "do_not_call": true,
+  "timestamp": "2026-09-28T04:01:05.123456+00:00",
+  "dnc_list_source": "https://www.donotcall.gov.au",
+  "cost": { "credits_used_for_query": 2, "total_credits_used": 5120, "credit_limit": 25000 }
+}
+```
+
+```json Invalid number
+{
+  "status": "failed",
+  "error_code": "invalid_phone_number",
+  "error": "DNC provider marked the phone number as invalid",
+  "charged": true,
+  "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+  "phone_number": "+61491570006",
+  "country": "AU"
+}
+```
+
+```json Expired
+{
+  "status": "failed",
+  "error_code": "lookup_expired",
+  "error": "the lookup could not be completed",
+  "charged": false,
+  "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+  "phone_number": "+61491570006",
+  "country": "AU"
+}
+```
+
+```json Billing error
+{
+  "status": "failed",
+  "error_code": "billing_error",
+  "error": "Credit finalization failed",
+  "charged": false,
+  "correlation_id": "0f5d6c2e-6a1f-4c6e-9d6b-2b1f0c7e8a91",
+  "phone_number": "+61491570006",
+  "country": "AU"
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+We will only push a final and single error to your webhook if we fail to resolve any requests within a 24 hour time window. 
+
+These appear in both synchronous responses and pushes.
+
+| `error_code` | HTTP status | `charged` | Meaning | Pushed |
+|---|---|---|---|---|
+| `invalid_phone_number` | 400 | `true` | The register rejected the number. | Yes |
+| `upstream_timeout` | 504 | `false` | The register timed out. | No, retried |
+| `upstream_error` | 502 | `false` | The register failed. | No, retried |
+| `lookup_expired` | 502 | `false` | No answer after 24 hours. Credits are refunded. | Yes |
+| `billing_error` | 500 | `true` or `false` | Credits couldn't be settled. | Yes |
+
+Client errors where possible return immediately instead of charging you:
+
+| Status | Cause |
+|---|---|
+| 400 | Missing or malformed `phone_number`, or invalid `webhook_url`. |
+| 401 / 403 | Missing or invalid API key. |
+| 422 | Unsupported country. |
+| 429 | Credit limit reached. Lasts until the next billing period or a credit top-up. |
+
+## Receiving the webhook request (your endpoint)
+
+- Reply with any 2xx within 10 seconds. We ignore the body.
+- 5xx, 408, 425 and 429 are retried with backoff (30 seconds up to 1 hour), up to 10 attempts. Any other status is treated as permanent and not retried. Redirects aren't followed.
+- Deduplicate on `correlation_id`: if your 2xx is lost or late, the same push can arrive again.
+- The URL has to stay reachable over https from the public internet. We resolve the host again at delivery and refuse private, loopback and link-local addresses.
+
+## Timing
+
+| Country | Receipt to push |
+|---|---|
+| US, GB, DE, IE, BE, NZ | About 2 seconds |
+| ES | A few seconds |
+| AU | Between 10 minutes and 24 hours |
+
+A `lookup_expired` push arrives 24 hours after the receipt.
