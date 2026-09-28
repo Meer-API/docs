@@ -850,6 +850,7 @@
         }
       },
       "SucceededPush": {
+        "title": "Succeeded",
         "allOf": [
           {
             "$ref": "#/components/schemas/PushIdentity"
@@ -876,6 +877,7 @@
         ]
       },
       "FailedPush": {
+        "title": "Failed",
         "allOf": [
           {
             "$ref": "#/components/schemas/PushIdentity"
