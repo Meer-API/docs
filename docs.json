@@ -18,12 +18,6 @@
             "pages": [
               "guides/quickstart"
             ]
-          },
-          {
-            "group": "Usage",
-            "pages": [
-              "guides/usage"
-            ]
           }
         ]
       },
@@ -35,8 +29,7 @@
           "GET /check_phone_number",
           "api-reference/webhooks",
           "GET /usage_stats",
-          "GET /v2/usage_stats",
-          "GET /periods"
+          "GET /v2/usage_stats"
         ]
       }
     ],
