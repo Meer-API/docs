@@ -679,7 +679,7 @@
             "name": "id",
             "in": "query",
             "required": false,
-            "description": "Return usage for this period. Use an id from a previous response; cannot be combined with pagination.",
+            "description": "The billing period to check. Get an id from [List billing periods](/api-reference/usage/list-billing-periods). Cannot be combined with pagination.",
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -790,6 +790,115 @@
                       "error": "unable to process request"
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/periods": {
+      "get": {
+        "operationId": "getBillingPeriods",
+        "tags": [
+          "Usage"
+        ],
+        "summary": "List billing periods",
+        "description": "Get your billing periods, newest first. Use a period's `id` with [Get usage /v2](/api-reference/usage/get-usage-v2) to check its usage. This endpoint is free.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Number of billing periods per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Use next_cursor from the previous response to get the next page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your billing periods.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPeriodPage"
+                },
+                "example": {
+                  "customer_name": "acme_corp",
+                  "data": [
+                    {
+                      "id": 123,
+                      "type": "monthly",
+                      "start_date": "2026-10-01T00:00:00Z",
+                      "end_date": "2026-11-01T00:00:00Z"
+                    }
+                  ],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "page size must be an integer between 1 and 100"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "invalid API key"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "unable to process request"
                 }
               }
             }
@@ -1291,6 +1400,68 @@
               "null"
             ],
             "description": "Pass as cursor for the next page. null means there are no more periods."
+          }
+        }
+      },
+      "BillingPeriodPage": {
+        "type": "object",
+        "required": [
+          "customer_name",
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "description": "The authenticated account."
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingPeriod"
+            },
+            "description": "Billing periods, newest first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as cursor for the next page. null means there are no more periods."
+          }
+        }
+      },
+      "BillingPeriod": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "start_date",
+          "end_date"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Use this id with GET /v2/usage_stats to check usage for the period.",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inclusive start of the billing period, in UTC."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end of the billing period, in UTC."
           }
         }
       }
