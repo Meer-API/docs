@@ -17,9 +17,11 @@ A missing key returns `401`, an invalid one `403`.
 
 ## Credits
 
-Each lookup uses credits from your limit for the billing period. The cost varies by country. The `/usage_stats` endpoint is the exception and is free.
+Each lookup uses credits from your limit for the billing period. The cost varies by country. Reporting endpoints (`/v2/usage_stats`, `/periods` and the legacy `/usage_stats`) are free.
 
 `X-Credit-Cost`, `X-RateLimit-Limit` and `X-RateLimit-Remaining` report the lookup's cost, your limit and what's left. The response body's `cost` object has the same figures. Once you reach the limit, requests return `429` until the next billing period or a credit top-up.
+
+Use [billing-period usage](/api-reference/usage/get-billing-period-usage) to check your credit balance and usage, or follow the [usage guide](/guides/usage) to select periods and page through history. The v2 endpoint also accepts a verified portal JWT for an active organization member when portal access is enabled.
 
 ## Sync or webhook
 
