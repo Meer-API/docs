@@ -28,7 +28,9 @@
           "api-reference/introduction",
           "GET /check_phone_number",
           "api-reference/webhooks",
-          "GET /usage_stats"
+          "GET /usage_stats",
+          "GET /v2/usage_stats",
+          "GET /periods"
         ]
       }
     ],

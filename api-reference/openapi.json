@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Meer API",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "Check phone numbers against national do-not-call registers.\n\nAuthenticate with `Authorization: Bearer <YOUR_API_KEY>`. The `Bearer` prefix is optional.\n\nLookups use credits from your limit for the billing period. The cost varies by country; each response reports it in `X-Credit-Cost` and `cost`.\n\nResellers must send `X-Forwarded-Host` with a unique ID for the end customer on every request.",
     "contact": {
       "name": "API Support",
@@ -541,7 +541,7 @@
           "Usage"
         ],
         "summary": "Get usage",
-        "description": "Lifetime request counts for the account that owns the API key, by month and by country. Free.",
+        "description": "Lifetime request counts for your account, by calendar month and country. Free. For credit balances and billing periods, use [the v2 endpoint](/api-reference/usage/get-usage-v2).",
         "responses": {
           "200": {
             "description": "Usage for your account.",
@@ -645,6 +645,266 @@
           }
         }
       }
+    },
+    "/v2/usage_stats": {
+      "get": {
+        "operationId": "getUsageStatsV2",
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Get usage /v2",
+        "description": "Check your account's credit balance and usage for a billing period. This endpoint is free and returns the latest recorded period by default.",
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "portalJwt": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "num_billing_periods",
+            "in": "query",
+            "required": false,
+            "description": "How many billing periods to return, newest first. Cannot be used with id.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 1
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "description": "The billing period to check. Get an id from [List billing periods](/api-reference/usage/list-billing-periods). Cannot be combined with pagination.",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Use next_cursor from the previous response to get the next page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage for the selected periods. Selecting an id still returns a data array.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPeriodUsagePage"
+                },
+                "example": {
+                  "customer_name": "acme_corp",
+                  "data": [
+                    {
+                      "id": 123,
+                      "type": "monthly",
+                      "start_date": "2026-10-01T00:00:00Z",
+                      "end_date": "2026-11-01T00:00:00Z",
+                      "credit_limit": 10000,
+                      "credits_used": 900,
+                      "credits_remaining": 9100,
+                      "total_requests": 700,
+                      "by_country": [
+                        {
+                          "country": "US",
+                          "request_count": 500
+                        },
+                        {
+                          "country": "AU",
+                          "request_count": 200
+                        }
+                      ],
+                      "unallocated_usage": {
+                        "request_count": 0,
+                        "credits_used": 0
+                      }
+                    }
+                  ],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters or cursor. id cannot be combined with pagination. year is not supported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing API key, or invalid, expired or unverified portal JWT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key or no active organization membership.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Period not found or belongs to another account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "examples": {
+                  "unable_to_process": {
+                    "value": {
+                      "error": "unable to process request"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/periods": {
+      "get": {
+        "operationId": "getBillingPeriods",
+        "tags": [
+          "Usage"
+        ],
+        "summary": "List billing periods",
+        "description": "Get your billing periods, newest first. Use a period's `id` with [Get usage /v2](/api-reference/usage/get-usage-v2) to check its usage. This endpoint is free.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Number of billing periods per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Use next_cursor from the previous response to get the next page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your billing periods.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPeriodPage"
+                },
+                "example": {
+                  "customer_name": "acme_corp",
+                  "data": [
+                    {
+                      "id": 123,
+                      "type": "monthly",
+                      "start_date": "2026-10-01T00:00:00Z",
+                      "end_date": "2026-11-01T00:00:00Z"
+                    }
+                  ],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "page size must be an integer between 1 and 100"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "Missing API key. Please provide it as: Authorization: Bearer <YOUR_KEY>"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "invalid API key"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestError"
+                },
+                "example": {
+                  "error": "unable to process request"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -654,6 +914,12 @@
         "scheme": "bearer",
         "description": "`Authorization: Bearer <YOUR_API_KEY>`. The `Bearer` prefix is optional.",
         "bearerFormat": "API key"
+      },
+      "portalJwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Verified portal JWT with active organization membership. Available on /v2/usage_stats when portal access is enabled."
       }
     },
     "headers": {
@@ -972,6 +1238,230 @@
           "request_count": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "BillingPeriodUsage": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "start_date",
+          "end_date",
+          "credit_limit",
+          "credits_used",
+          "credits_remaining",
+          "total_requests",
+          "by_country",
+          "unallocated_usage"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Billing-period ID."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inclusive start, in UTC."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end, in UTC."
+          },
+          "credit_limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Credit limit for this period."
+          },
+          "credits_used": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Credits used in this period, including pending charges and excluding refunds."
+          },
+          "credits_remaining": {
+            "type": "integer",
+            "format": "int64",
+            "description": "credit_limit minus credits_used. May be negative after a limit reduction."
+          },
+          "total_requests": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charged requests, including pending charges and excluding refunds."
+          },
+          "by_country": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryUsage"
+            },
+            "description": "Completed lookups by country. Pending requests are not included."
+          },
+          "unallocated_usage": {
+            "type": "object",
+            "description": "Historical usage without enough detail to assign to a month. Included in the period totals.",
+            "required": [
+              "request_count",
+              "credits_used"
+            ],
+            "properties": {
+              "request_count": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "credits_used": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "monthly": {
+            "type": "array",
+            "description": "For annual plans, usage in each of the twelve months starting from your billing date. Omitted for monthly plans.",
+            "items": {
+              "$ref": "#/components/schemas/BillingMonthUsage"
+            }
+          }
+        }
+      },
+      "BillingMonthUsage": {
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "start_date",
+          "end_date",
+          "request_count",
+          "credits_used"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Year of the bucket's start."
+          },
+          "month": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Month of the bucket's start."
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inclusive start, in UTC."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end, in UTC."
+          },
+          "request_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charged requests, including pending charges and excluding refunds."
+          },
+          "credits_used": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Credits used, including pending charges and excluding refunds."
+          }
+        }
+      },
+      "BillingPeriodUsagePage": {
+        "type": "object",
+        "required": [
+          "customer_name",
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "description": "The authenticated account."
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingPeriodUsage"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as cursor for the next page. null means there are no more periods."
+          }
+        }
+      },
+      "BillingPeriodPage": {
+        "type": "object",
+        "required": [
+          "customer_name",
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "description": "The authenticated account."
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingPeriod"
+            },
+            "description": "Billing periods, newest first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as cursor for the next page. null means there are no more periods."
+          }
+        }
+      },
+      "BillingPeriod": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "start_date",
+          "end_date"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Use this id with GET /v2/usage_stats to check usage for the period.",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inclusive start of the billing period, in UTC."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end of the billing period, in UTC."
           }
         }
       }
