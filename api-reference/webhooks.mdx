@@ -47,8 +47,8 @@ Response headers:
 | Header | Value |
 |---|---|
 | `X-Meer-Correlation-Id` | Same as `correlation_id`. |
-| `X-Credit-Cost` | Credits held for the lookup. They're charged when it succeeds and refunded if it fails. |
-| `X-RateLimit-Limit`, `X-RateLimit-Remaining` | Credit limit for the billing period, and credits left. |
+| `X-Credit-Cost` | Credits charged for the lookup. They're refunded if it fails. |
+| `X-RateLimit-Limit`, `X-RateLimit-Remaining` | Credit limit for the billing period, and credits left. Eventually consistent: recent lookups may not be included yet. |
 
 ## The push
 

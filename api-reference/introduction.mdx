@@ -21,6 +21,8 @@ Each lookup uses credits from your limit for the billing period. The cost varies
 
 `X-Credit-Cost`, `X-RateLimit-Limit` and `X-RateLimit-Remaining` report the lookup's cost, your limit and what's left. The response body's `cost` object has the same figures. Once you reach the limit, requests return `429` until the next billing period or a credit top-up.
 
+Your balance is eventually consistent. Each lookup reaches it within a few seconds, so `X-RateLimit-Remaining`, `cost.total_credits_used` and `GET /v2/usage_stats` can trail your latest requests, and requests sent close together can report the same figures. A burst can therefore go slightly past your limit before `429` starts; every lookup accepted before then is answered and charged.
+
 ## Sync or webhook
 
 `/check_phone_number` returns the answer directly by default. Pass `webhook_url` to get a `202` receipt instead and have the answer POSTed to you. See [Webhooks](/api-reference/webhooks).

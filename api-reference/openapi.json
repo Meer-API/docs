@@ -943,7 +943,7 @@
         }
       },
       "RateLimitRemaining": {
-        "description": "Credits left in the billing period.",
+        "description": "Credits left in the billing period. Eventually consistent: lookups from the last few seconds may not be included yet.",
         "schema": {
           "type": "integer"
         }
@@ -983,7 +983,7 @@
           },
           "total_credits_used": {
             "type": "integer",
-            "description": "Credits used in the billing period."
+            "description": "Credits used in the billing period, including this lookup. Eventually consistent: other lookups from the last few seconds may not be included yet."
           },
           "credit_limit": {
             "type": "integer",
@@ -1286,7 +1286,7 @@
           "credits_used": {
             "type": "integer",
             "format": "int32",
-            "description": "Credits used in this period, including pending charges and excluding refunds."
+            "description": "Credits used in this period, excluding refunds. Eventually consistent: lookups from the last few seconds may not be included yet."
           },
           "credits_remaining": {
             "type": "integer",
@@ -1296,7 +1296,7 @@
           "total_requests": {
             "type": "integer",
             "format": "int64",
-            "description": "Charged requests, including pending charges and excluding refunds."
+            "description": "Charged requests, excluding refunds. Eventually consistent: lookups from the last few seconds may not be included yet."
           },
           "by_country": {
             "type": "array",
@@ -1367,12 +1367,12 @@
           "request_count": {
             "type": "integer",
             "format": "int64",
-            "description": "Charged requests, including pending charges and excluding refunds."
+            "description": "Charged requests, excluding refunds. Eventually consistent: lookups from the last few seconds may not be included yet."
           },
           "credits_used": {
             "type": "integer",
             "format": "int64",
-            "description": "Credits used, including pending charges and excluding refunds."
+            "description": "Credits used, excluding refunds. Eventually consistent: lookups from the last few seconds may not be included yet."
           }
         }
       },
